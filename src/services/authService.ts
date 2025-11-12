@@ -1,4 +1,5 @@
 import { jwtDecode } from 'jwt-decode';
+import axios from 'axios';
 import { 
   User, 
   LoginCredentials, 
@@ -27,14 +28,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
     });
 
     const data = await response.json();
-    
-    // Save tokens if login successful
-    if (data.success && data.data) {
-      if (data.data.token) setToken(data.data.token);
-      if (data.data.refreshToken) setRefreshToken(data.data.refreshToken);
-    }
-    
-    return data;
+    return data; // Just return data, don't save token here
 
   } catch (error) {
     return {
@@ -57,14 +51,7 @@ export async function register(credentials: RegisterCredentials): Promise<AuthRe
     });
 
     const data = await response.json();
-    
-    // Save tokens if registration successful
-    if (data.success && data.data) {
-      if (data.data.token) setToken(data.data.token);
-      if (data.data.refreshToken) setRefreshToken(data.data.refreshToken);
-    }
-    
-    return data;
+    return data; // Just return data, don't save token here
 
   } catch (error) {
     return {
@@ -212,17 +199,53 @@ export function isTokenExpired(token: string): boolean {
 }
 
 /**
- * Make authenticated API call
+ * ============================================
+ * AXIOS SETUP WITH INTERCEPTORS
+ * ============================================
+ * This automatically adds token to ALL requests!
  */
-export async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = getToken();
-  
-  return fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    },
-  });
-}
+
+// Create axios instance
+export const apiClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || '',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// REQUEST INTERCEPTOR - Automatically add token to every request
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// RESPONSE INTERCEPTOR - Handle errors and auto-refresh token
+apiClient.interceptors.response.use(
+  (response) => response, // If success, just return
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If 401 error and we haven't tried refreshing yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        // Retry original request with new token
+        const token = getToken();
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return apiClient(originalRequest);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);

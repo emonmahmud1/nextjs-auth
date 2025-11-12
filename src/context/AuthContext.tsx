@@ -55,7 +55,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (response.success && response.data) {
         setUser(response.data.user);
+        // Save tokens here (single place)
         authService.setToken(response.data.token);
+        if (response.data.refreshToken) {
+          authService.setRefreshToken(response.data.refreshToken);
+        }
         router.push('/'); // Redirect to home after login
       } else {
         throw new Error(response.message || 'Login failed');
@@ -78,7 +82,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (response.success && response.data) {
         setUser(response.data.user);
+        // Save tokens here (single place)
         authService.setToken(response.data.token);
+        if (response.data.refreshToken) {
+          authService.setRefreshToken(response.data.refreshToken);
+        }
         router.push('/'); // Redirect to home after registration
       } else {
         throw new Error(response.message || 'Registration failed');
@@ -99,12 +107,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await authService.logout();
       setUser(null);
       authService.removeToken();
+      authService.removeRefreshToken(); // Also remove refresh token
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
       // Still clear local state even if API call fails
       setUser(null);
       authService.removeToken();
+      authService.removeRefreshToken();
       router.push('/login');
     }
   };
