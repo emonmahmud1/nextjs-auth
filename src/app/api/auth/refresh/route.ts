@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyRefreshToken, generateAccessToken } from '@/lib/jwt';
 
 /**
- * Refresh Token API
+ * REFRESH TOKEN API
  * POST /api/auth/refresh
+ * 
+ * Flow:
+ * 1. Get refresh token from request
+ * 2. Verify refresh token is valid
+ * 3. Generate new access token
+ * 4. Return new access token
  */
 export async function POST(request: NextRequest) {
   try {
     const { refreshToken } = await request.json();
 
+    // Check if refresh token provided
     if (!refreshToken) {
       return NextResponse.json(
         { success: false, message: 'Refresh token required' },
@@ -15,11 +23,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // DEMO MODE: Just generate new token
-    // In real app: Verify refresh token in database
+    // Verify refresh token
+    const decoded = verifyRefreshToken(refreshToken);
     
-    const newToken = `token_${Date.now()}`;
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid or expired refresh token' },
+        { status: 401 }
+      );
+    }
 
+    // Generate new access token
+    const newToken = generateAccessToken(decoded.userId, decoded.email);
+
+    // Return new token
     return NextResponse.json({
       success: true,
       message: 'Token refreshed',
@@ -27,6 +44,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    console.error('Refresh token error:', error);
     return NextResponse.json(
       { success: false, message: 'Server error' },
       { status: 500 }
