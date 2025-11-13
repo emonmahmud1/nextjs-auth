@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 
 const HomePage = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  console.log(isAuthenticated);
 
   return (
     <>
@@ -40,15 +41,15 @@ const HomePage = () => {
       <h1 className="mb-4 text-center text-2xl font-semibold">
         The post data is here
       </h1>
-      <Suspense
+      {/* <Suspense
         fallback={
           <div className="flex justify-center">
             <Loading />
           </div>
         }
-      >
+      > */}
         <ShowPost />
-      </Suspense>
+      {/* </Suspense> */}
       <h1 className="mt-10 p-3 text-2xl font-semibold text-center text-red-200">
         use client show post
       </h1>
